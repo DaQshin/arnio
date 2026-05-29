@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <fstream>
 #include <memory>
 #include <optional>
@@ -52,10 +53,13 @@ class CsvParser {
     bool is_null_sentinel(const std::string& value) const;
     DType infer_type(const std::string& value) const;
     static DType promote_type(DType current, DType incoming);
-    CellValue parse_value(const std::string& raw, DType dtype) const;
+    CellValue parse_value(const std::string& raw, DType dtype, bool is_forced = false) const;
 
    private:
     CsvConfig config_;
+    // 256-byte lookup table: non-zero for chars that stop the unquoted
+    // bulk-scan (delimiter, '"', '\r'). Initialised once in the constructor.
+    std::array<uint8_t, 256> stop_unquoted_{};
 };
 
 class CsvReader {
@@ -66,7 +70,8 @@ class CsvReader {
     CsvParseResult read(const std::string& path, const std::string& on_bad_lines = "error") const;
 
     // Scan schema only (column names + inferred types)
-    std::vector<std::pair<std::string, std::string>> scan_schema(const std::string& path) const;
+    std::pair<std::vector<std::pair<std::string, std::string>>, std::vector<std::string>>
+    scan_schema(const std::string& path, const std::string& on_bad_lines = "error") const;
 
    private:
     CsvParser parser_;
@@ -89,6 +94,7 @@ class CsvChunkReader {
     std::vector<std::string> header_;
     std::vector<size_t> col_indices_;
     std::vector<DType> col_types_;
+    std::vector<bool> explicit_dtype_columns_;
     std::optional<size_t> expected_cols_;
     size_t record_number_ = 0;
     size_t rows_read_total_ = 0;
@@ -101,7 +107,8 @@ class CsvChunkReader {
     bool read_one_data_row(std::vector<std::string>& fields_out,
                            const std::string& on_bad_lines = "error",
                            std::vector<BadRow>* bad_rows_out = nullptr);
-    Frame build_frame(const std::vector<std::vector<std::string>>& raw_data) const;
+    Frame build_frame(const std::vector<std::vector<std::string>>& raw_data,
+                      bool validate_locked_schema = false) const;
 };
 
 }  // namespace arnio
