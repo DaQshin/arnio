@@ -963,6 +963,7 @@ def read_jsonl(
     path: str | os.PathLike[str],
     *,
     encoding: str = "utf-8",
+    encoding_errors: str = "strict",
     nrows: int | None = None,
 ) -> ArFrame:
     """Read a JSON Lines file into an ArFrame.
@@ -1013,6 +1014,8 @@ def read_jsonl(
             "read_jsonl only supports .jsonl and .ndjson files."
         )
 
+    encoding_errors = _validate_encoding_errors(encoding_errors)
+
     if nrows is not None:
         if isinstance(nrows, bool) or not isinstance(nrows, int):
             raise TypeError("nrows must be an integer")
@@ -1030,7 +1033,7 @@ def read_jsonl(
 
     records: list[dict] = []
     try:
-        with open(path, encoding=encoding) as fh:
+        with open(path, encoding=encoding, errors=encoding_errors) as fh:
             for lineno, raw_line in enumerate(fh, start=1):
                 line = raw_line.rstrip("\r\n")
                 if not line.strip():
